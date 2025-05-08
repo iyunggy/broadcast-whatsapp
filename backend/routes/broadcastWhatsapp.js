@@ -75,14 +75,20 @@ router.post("/uploadphone", upload.fields([{ name: "phone" }, { name: "image" }]
     const workbook = XLSX.read(req.files.phone[0].buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
     const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    console.log("🚀 ~ router.post ~ data:", data)
 
     const results = [];
     for (let number of data) {
+      console.log("🚀 ~ router.post ~ number:", number)
       const whatsappNumber = number.phonenumber.toString() + "@c.us";
       console.log("📞 Mengirim ke:", whatsappNumber);
 
       // Format pesan jika ada line breaks
       const formattedMessage = message.replace(/\\n/g, '\n'); // jika ada '\\n' dalam teks
+
+      function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
 
       try {
         if (image) {
@@ -101,6 +107,10 @@ router.post("/uploadphone", upload.fields([{ name: "phone" }, { name: "image" }]
         }
 
         results.push({ number: whatsappNumber, status: "Sent" });
+
+        // ⏱️ Tambahkan delay acak antara 1 - 3 detik
+      await sleep(Math.floor(Math.random() * 2000) + 1000);
+      
       } catch (error) {
         results.push({ number: whatsappNumber, status: "Failed", error: error.toString() });
       }
