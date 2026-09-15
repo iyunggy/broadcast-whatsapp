@@ -20,8 +20,17 @@ const client = new Client({
             "--no-first-run",
             "--no-zygote",
             "--disable-gpu",
+            "--disable-extensions",
         ],
     },
+    webVersionCache: {
+        type: "remote",
+        remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html",
+    },
+});
+
+client.on("loading_screen", (percent, message) => {
+    console.log(`Loading WhatsApp Web: ${percent}% - ${message}`);
 });
 
 client.on("qr", (qr) => {
@@ -29,8 +38,16 @@ client.on("qr", (qr) => {
     qrcode.generate(qr, { small: true });
 });
 
+client.on("authenticated", () => {
+    console.log("WhatsApp Berhasil Terautentikasi / Login!");
+});
+
+client.on("auth_failure", (msg) => {
+    console.error("Autentikasi Gagal:", msg);
+});
+
 client.on("ready", () => {
-    console.log("WhatsApp bot siap!");
+    console.log("WhatsApp bot siap digunakan!");
 });
 
 client.initialize();

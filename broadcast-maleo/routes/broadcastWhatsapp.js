@@ -6,7 +6,39 @@ const { Client, MessageMedia } = require("whatsapp-web.js"); // Import MessageMe
 const { client } = require("../server"); // Import client dari server.js
 
 router.get("/", async (req, res) => {
-  res.json({'message': 'Route ini hanya support POST saja'});
+  res.json({
+    message: "API Broadcast WhatsApp",
+    endpoints: {
+      "POST /broadcastwhatsapp/personal": {
+        payload: { phone: "6281234567890", message: "Pesan teks" },
+      },
+      "POST /broadcastwhatsapp/group": {
+        payload: { id_group_chat: "120363028123456789@g.us", message: "Pesan teks" },
+      },
+    },
+  });
+});
+
+router.get("/personal", (req, res) => {
+  res.status(405).json({
+    status: 405,
+    message: "Method GET tidak didukung. Gunakan method POST.",
+    example_payload: {
+      phone: "6281234567890",
+      message: "Isi pesan broadcast",
+    },
+  });
+});
+
+router.get("/group", (req, res) => {
+  res.status(405).json({
+    status: 405,
+    message: "Method GET tidak didukung. Gunakan method POST.",
+    example_payload: {
+      id_group_chat: "120363028123456789@g.us",
+      message: "Isi pesan broadcast ke grup",
+    },
+  });
 });
 
 router.post("/personal", async (req, res) => {
