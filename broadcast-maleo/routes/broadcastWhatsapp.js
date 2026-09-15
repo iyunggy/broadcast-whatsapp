@@ -1,14 +1,24 @@
 const express = require("express");
 const router = express.Router();
-const multer = require("multer");
-const XLSX = require("xlsx");
-const { Client, MessageMedia } = require("whatsapp-web.js"); // Import MessageMedia
-const { client } = require("../server"); // Import client dari server.js
+const { client, isBotReady, getBotStatus } = require("../server");
+
+// Helper kirim pesan dengan batas timeout (15 detik) agar tidak hanging
+function sendMessageWithTimeout(target, message, timeoutMs = 15000) {
+  return Promise.race([
+    client.sendMessage(target, message),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout: WhatsApp bot tidak merespons dalam 15 detik")), timeoutMs)
+    ),
+  ]);
+}
 
 router.get("/", async (req, res) => {
   res.json({
     message: "API Broadcast WhatsApp",
+    bot_ready: isBotReady(),
+    bot_status: getBotStatus(),
     endpoints: {
+      "GET /broadcastwhatsapp/status": "Cek status kesiapan bot",
       "POST /broadcastwhatsapp/personal": {
         payload: { phone: "6281234567890", message: "Pesan teks" },
       },
@@ -16,6 +26,13 @@ router.get("/", async (req, res) => {
         payload: { id_group_chat: "120363028123456789@g.us", message: "Pesan teks" },
       },
     },
+  });
+});
+
+router.get("/status", (req, res) => {
+  res.json({
+    bot_ready: isBotReady(),
+    status: getBotStatus(),
   });
 });
 
@@ -43,9 +60,13 @@ router.get("/group", (req, res) => {
 
 router.post("/personal", async (req, res) => {
   const { phone, message } = req.body;
-  // console.log("🚀 ~ router.post ~ phone:", phone)
-  // console.log("🚀 ~ router.post ~ message:", message)
-  
+
+  if (!isBotReady()) {
+    return res.status(503).json({
+      status: "Failed",
+      error: `WhatsApp bot belum siap (${getBotStatus()}). Silakan cek status di log PM2.`,
+    });
+  }
 
   if (!phone || !message) {
     return res
@@ -53,50 +74,45 @@ router.post("/personal", async (req, res) => {
       .json({ error: "Phone dan message tidak boleh kosong" });
   }
 
-  try {
-    const whatsappNumber = phone.toString() + "@c.us";
-    // console.log("📞 Mengirim ke:", whatsappNumber);
+  const whatsappNumber = phone.toString() + "@c.us";
 
-    try {
-      await client.sendMessage(whatsappNumber, message);
-      res.json({ number: whatsappNumber, status: "Sent" });
-    } catch (error) {
-      res.json({
-        number: whatsappNumber,
-        status: "Failed",
-        error: error.toString(),
-      });
-    }
+  try {
+    await sendMessageWithTimeout(whatsappNumber, message);
+    res.json({ number: whatsappNumber, status: "Sent" });
   } catch (error) {
-    res.status(500).json({ message: "Error sending message", error });
+    res.status(500).json({
+      number: whatsappNumber,
+      status: "Failed",
+      error: error.message || error.toString(),
+    });
   }
 });
 
 router.post("/group", async (req, res) => {
   const { id_group_chat, message } = req.body;
-  // console.log("🚀 ~ router.post ~ id_group_chat:", id_group_chat)
-  // console.log("🚀 ~ router.post ~ message:", message)
+
+  if (!isBotReady()) {
+    return res.status(503).json({
+      status: "Failed",
+      error: `WhatsApp bot belum siap (${getBotStatus()}). Silakan cek status di log PM2.`,
+    });
+  }
 
   if (!id_group_chat || !message) {
     return res.status(400).json({ error: "ID grup dan message tidak boleh kosong" });
   }
 
-  try {
-    const whatsappNumber = id_group_chat;
-    // console.log("📞 Mengirim ke:", whatsappNumber);
+  const whatsappNumber = id_group_chat;
 
-    try {
-      await client.sendMessage(whatsappNumber, message);
-      res.json({ number: whatsappNumber, status: "Sent" });
-    } catch (error) {
-      res.json({
-        number: whatsappNumber,
-        status: "Failed",
-        error: error,
-      });
-    }
+  try {
+    await sendMessageWithTimeout(whatsappNumber, message);
+    res.json({ number: whatsappNumber, status: "Sent" });
   } catch (error) {
-    res.status(500).json({ message: "Error sending message", error });
+    res.status(500).json({
+      number: whatsappNumber,
+      status: "Failed",
+      error: error.message || error.toString(),
+    });
   }
 });
 

@@ -7,7 +7,11 @@ const qrcode = require("qrcode-terminal");
 // Middleware untuk parsing JSON
 app.use(express.json());
 
-// Inisialisasi WhatsApp Client
+// Status bot WhatsApp
+let botReady = false;
+let botStatusMessage = "Inisialisasi bot...";
+
+// Inisialisasi WhatsApp Client dengan optimasi ekstrem untuk 1 vCPU 1GB RAM Droplet
 const client = new Client({
     authStrategy: new LocalAuth(), // Menyimpan sesi login
     puppeteer: {
@@ -19,8 +23,20 @@ const client = new Client({
             "--disable-accelerated-2d-canvas",
             "--no-first-run",
             "--no-zygote",
+            "--single-process", // Sangat hemat memori untuk 1 vCPU
             "--disable-gpu",
             "--disable-extensions",
+            "--disable-default-apps",
+            "--disable-translate",
+            "--disable-sync",
+            "--disable-background-networking",
+            "--disable-software-rasterizer",
+            "--mute-audio",
+            "--hide-scrollbars",
+            "--disable-breakpad",
+            "--disable-renderer-backgrounding",
+            "--disable-background-timer-throttling",
+            "--js-flags=--max-old-space-size=512",
         ],
     },
     webVersionCache: {
@@ -30,40 +46,61 @@ const client = new Client({
 });
 
 client.on("loading_screen", (percent, message) => {
-    console.log(`Loading WhatsApp Web: ${percent}% - ${message}`);
+    botStatusMessage = `Loading WhatsApp Web: ${percent}% - ${message}`;
+    console.log(botStatusMessage);
 });
 
 client.on("qr", (qr) => {
+    botStatusMessage = "Menunggu Scan QR Code";
     console.log("Scan QR Code ini untuk login:");
     qrcode.generate(qr, { small: true });
 });
 
 client.on("authenticated", () => {
+    botStatusMessage = "Autentikasi Berhasil, memuat chat...";
     console.log("WhatsApp Berhasil Terautentikasi / Login!");
 });
 
 client.on("auth_failure", (msg) => {
-    console.error("Autentikasi Gagal:", msg);
+    botReady = false;
+    botStatusMessage = `Autentikasi Gagal: ${msg}`;
+    console.error(botStatusMessage);
+});
+
+client.on("disconnected", (reason) => {
+    botReady = false;
+    botStatusMessage = `WhatsApp Terputus: ${reason}`;
+    console.log(botStatusMessage);
 });
 
 client.on("ready", () => {
-    console.log("WhatsApp bot siap digunakan!");
+    botReady = true;
+    botStatusMessage = "WhatsApp bot siap digunakan!";
+    console.log("✅ WhatsApp bot siap digunakan!");
 });
 
 client.initialize();
 
-// Ekspor client agar bisa digunakan di routes
-module.exports.client = client;
+// Ekspor client dan helper status agar bisa digunakan di routes
+module.exports = {
+    client,
+    isBotReady: () => botReady,
+    getBotStatus: () => botStatusMessage,
+};
 
 // routes
-const broadcastWhatsappRoutes= require('./routes/broadcastWhatsapp')
+const broadcastWhatsappRoutes = require("./routes/broadcastWhatsapp");
 
-// Route sederhana
+// Route sederhana & health check
 app.get("/", (req, res) => {
-    res.send("Hello, Express!");
+    res.json({
+        service: "Broadcast WhatsApp API",
+        bot_ready: botReady,
+        status: botStatusMessage,
+    });
 });
 
-app.use('/broadcastwhatsapp', broadcastWhatsappRoutes)
+app.use("/broadcastwhatsapp", broadcastWhatsappRoutes);
 
 // Jalankan server
 app.listen(port, () => {
