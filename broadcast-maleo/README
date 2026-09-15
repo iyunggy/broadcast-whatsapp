@@ -1,0 +1,16 @@
+1. Menggunakan node versi 20.17.0
+2. Cara install:
+   npm install
+
+3. Cara menjalankan:
+   - Development / Foreground:
+     npm run dev
+     atau
+     npm start
+
+   - Background (PM2):
+     npm run pm2:start    # Menjalankan di background
+     npm run pm2:logs     # Melihat log / scan QR jika diperlukan
+     npm run pm2:status   # Melihat status proses
+     npm run pm2:restart  # Restart aplikasi
+     npm run pm2:stop     # Menghentikan proses
